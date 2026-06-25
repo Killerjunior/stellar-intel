@@ -33,6 +33,15 @@ const NETWORK_PASSPHRASE = NETWORK === 'mainnet' ? Networks.PUBLIC : Networks.TE
 if (!CONTRACT_ID) throw new Error('ORACLE_CONTRACT_ID is required');
 if (!ADMIN_SECRET) throw new Error('ADMIN_SECRET_KEY is required');
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type OracleClient = contract.Client & {
+  register_anchor(args: {
+    admin: string;
+    anchor_id: string;
+  }): Promise<{ signAndSend(): Promise<unknown> }>;
+};
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -41,13 +50,13 @@ async function main(): Promise<void> {
 
   // Build a contract client — reads the contract interface from the network at
   // runtime so method args are mapped automatically.
-  const client = await contract.Client.from({
+  const client = (await contract.Client.from({
     contractId: CONTRACT_ID!,
     rpcUrl: RPC_URL,
     networkPassphrase: NETWORK_PASSPHRASE,
     publicKey: adminKeypair.publicKey(),
     signTransaction,
-  });
+  })) as unknown as OracleClient;
 
   console.log(`Network:  ${NETWORK}`);
   console.log(`Contract: ${CONTRACT_ID}`);
@@ -57,7 +66,7 @@ async function main(): Promise<void> {
   for (const anchor of ANCHORS) {
     process.stdout.write(`  register_anchor("${anchor.id}") … `);
     try {
-      const tx = await (client as any).register_anchor({
+      const tx = await client.register_anchor({
         admin: adminKeypair.publicKey(),
         anchor_id: anchor.id,
       });
